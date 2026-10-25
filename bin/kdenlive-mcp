@@ -1,0 +1,12 @@
+#!/bin/sh
+# Launcher for the kdenlive MCP server.
+# Puts a known-good libopenjp2 first on the loader path: the system copy is
+# corrupted on this machine (see scripts/repair-system.sh), and without it
+# libavformat cannot load, so melt hangs at the end of the render.
+set -e
+DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+if [ -d "$DIR/vendor/lib" ]; then
+    LD_LIBRARY_PATH="$DIR/vendor/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+    export LD_LIBRARY_PATH
+fi
+exec "$DIR/.venv/bin/python" -m kdenlive_mcp
