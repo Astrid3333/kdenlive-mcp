@@ -65,6 +65,7 @@ def test_environment_report():
 
 def test_fake_job_lifecycle(tmp_path, monkeypatch):
     monkeypatch.setenv("KDENLIVE_MCP_HOME", str(tmp_path / "state"))
+    monkeypatch.setenv("KDENLIVE_MCP_FORCE_RENDER", "1")
     jobs.JOBS_DIR = Path(tmp_path / "state" / "jobs")
     out = tmp_path / "out.mp4"
     job = jobs.start_job(
@@ -86,6 +87,7 @@ def test_fake_job_lifecycle(tmp_path, monkeypatch):
 
 def test_stop_job(tmp_path, monkeypatch):
     monkeypatch.setenv("KDENLIVE_MCP_HOME", str(tmp_path / "state"))
+    monkeypatch.setenv("KDENLIVE_MCP_FORCE_RENDER", "1")
     jobs.JOBS_DIR = Path(tmp_path / "state" / "jobs")
     job = jobs.start_job(["bash", "-c", "sleep 30"], project="p", output="o")
     time.sleep(0.2)
@@ -112,6 +114,7 @@ def test_render_start_with_stub_melt(tmp_path, monkeypatch):
     melt.chmod(0o755)
     monkeypatch.setenv("PATH", f"{bindir}:{os.environ['PATH']}")
     monkeypatch.setenv("KDENLIVE_MCP_HOME", str(tmp_path / "state"))
+    monkeypatch.setenv("KDENLIVE_MCP_FORCE_RENDER", "1")
     jobs.JOBS_DIR = Path(tmp_path / "state" / "jobs")
 
     out = tmp_path / "render.mp4"
@@ -128,7 +131,9 @@ def test_render_start_with_stub_melt(tmp_path, monkeypatch):
     assert status["returncode"] == 0
     assert status["output_exists"] is True
     assert status["progress"]["percent"] == 100.0
-    assert server.kdenlive_env()["ready"] is True
+    env = server.kdenlive_env()
+    assert isinstance(env["ready"], bool)
+    assert env["melt"]["path"] is not None
 
 
 def test_progress_parses_melt_current_frame(tmp_path):
@@ -139,3 +144,23 @@ def test_progress_parses_melt_current_frame(tmp_path):
     prog = jobs._progress(str(log))
     assert prog["percent"] == 98.0
     assert prog["frames"] == "frame 49"
+
+
+def test_render_refuses_when_avformat_broken(tmp_path, monkeypatch):
+    from kdenlive_mcp import server
+
+    monkeypatch.setattr(server, "_avformat_ok", lambda: (False, "libopenjp2.so.7: invalid ELF header"))
+    res = server.render_start(str(FIXTURE), str(tmp_path / "x.mp4"))
+    assert res["ok"] is False
+    assert "libavformat" in res["error"]
+    assert "reinstall" in res["hint"]
+
+
+def test_env_reports_avformat(tmp_path, monkeypatch):
+    from kdenlive_mcp import jobs
+
+    monkeypatch.setattr(jobs, "_avformat_ok", lambda: (False, "boom"))
+    rep = jobs.environment_report()
+    assert rep["avformat"] == {"ok": False, "error": "boom"}
+    assert rep["ready"] is False
+    assert "libopenjp2" in rep["hint"]

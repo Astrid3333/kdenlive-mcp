@@ -47,19 +47,38 @@ def _version(cmd: list[str]) -> str | None:
     return text.splitlines()[0] if text else None
 
 
+def _avformat_ok() -> tuple[bool, str | None]:
+    """melt's avformat consumer needs libavformat, which dlopens libopenjp2 etc."""
+    import ctypes
+
+    try:
+        ctypes.CDLL("libavformat.so.60")
+    except OSError as exc:
+        return False, str(exc)
+    return True, None
+
+
 def environment_report() -> dict[str, Any]:
     melt = find_binary("melt", "melt-7", "melt-6")
     kdenlive = find_binary("kdenlive")
+    avformat_ok, avformat_err = _avformat_ok()
     report: dict[str, Any] = {
         "kdenlive": {"path": kdenlive, "version": _version([kdenlive, "--version"]) if kdenlive else None},
         "melt": {"path": melt, "version": _version([melt, "-version"]) if melt else None},
         "ffmpeg": {"path": find_binary("ffmpeg")},
         "ffprobe": {"path": find_binary("ffprobe")},
+        "avformat": {"ok": avformat_ok, "error": avformat_err},
         "jobs_dir": str(JOBS_DIR),
-        "ready": bool(melt),
+        "ready": bool(melt) and avformat_ok,
     }
     if not melt:
         report["hint"] = "melt not found: install it (e.g. `sudo apt install melt`) to enable rendering."
+    elif not avformat_ok:
+        report["hint"] = (
+            "libavformat cannot be loaded (a system library is corrupted, usually "
+            "`libopenjp2.so.7`): render will hang. Fix with "
+            "`sudo apt-get install --reinstall libopenjp2-7 ffmpeg`."
+        )
     return report
 
 

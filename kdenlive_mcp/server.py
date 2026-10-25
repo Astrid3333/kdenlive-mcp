@@ -9,7 +9,15 @@ from typing import Any
 from mcp.server.mcpserver import MCPServer
 
 from . import __version__
-from .jobs import environment_report, find_binary, job_status, list_jobs, start_job, stop_job
+from .jobs import (
+    _avformat_ok,
+    environment_report,
+    find_binary,
+    job_status,
+    list_jobs,
+    start_job,
+    stop_job,
+)
 from .project import inspect_project
 
 mcp = MCPServer(
@@ -68,6 +76,17 @@ def render_start(
             "ok": False,
             "error": "melt not found on PATH",
             "hint": "install it, e.g. `sudo apt install melt`",
+        }
+    av_ok, av_err = _avformat_ok()
+    if not av_ok and os.environ.get("KDENLIVE_MCP_FORCE_RENDER") != "1":
+        return {
+            "ok": False,
+            "error": f"libavformat cannot be loaded: {av_err}",
+            "hint": (
+                "melt would hang without it; repair the corrupted system library with "
+                "`sudo apt-get install --reinstall libopenjp2-7 ffmpeg` "
+                "(set KDENLIVE_MCP_FORCE_RENDER=1 to try anyway)"
+            ),
         }
     Path(output).parent.mkdir(parents=True, exist_ok=True)
 
