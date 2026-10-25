@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kdenlive-mcp"
+version = "0.1.0"
+description = "MCP server for Kdenlive: project inspection and melt rendering"
+requires-python = ">=3.10"
+dependencies = ["mcp>=2.0"]
+
+[project.scripts]
+kdenlive-mcp = "kdenlive_mcp.server:main"
+
+[tool.setuptools.packages.find]
+include = ["kdenlive_mcp*"]

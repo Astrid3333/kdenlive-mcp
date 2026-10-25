@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mlt version="7.22.0" title="Kdenlive" mlt_version="7.22.0" root="/home/user/videos">
+  <profile frame_rate_num="30000" frame_rate_den="1001" width="1920" height="1080" progressive="1" colorspace="709" sample_aspect_num="1" sample_aspect_den="1" display_aspect_num="16" display_aspect_den="9"/>
+  <producer id="producer0" in="0" out="5999">
+    <property name="length">6000</property>
+    <property name="resource">/home/user/videos/interview.mp4</property>
+    <property name="mlt_service">avformat</property>
+  </producer>
+  <producer id="producer1" in="0" out="2999">
+    <property name="resource">color:#112233</property>
+    <property name="mlt_service">color</property>
+  </producer>
+  <producer id="producer2" in="0" out="1499">
+    <property name="resource">/home/user/videos/broll_missing.mp4</property>
+    <property name="mlt_service">avformat</property>
+  </producer>
+  <playlist id="playlist0">
+    <property name="kdenlive_uid">a1b2c3d4</property>
+    <property name="title">Video 1</property>
+    <entry producer="producer0" in="0" out="5999"/>
+    <entry producer="producer2" in="0" out="1499"/>
+  </playlist>
+  <playlist id="playlist1">
+    <property name="kdenlive_uid">e5f6a7b8</property>
+    <property name="title">Audio 1</property>
+    <property name="audio_only">1</property>
+    <entry producer="producer1" in="0" out="2999"/>
+  </playlist>
+  <tractor id="tractor0" title="Timeline">
+    <property name="title">Timeline</property>
+    <track producer="playlist0"/>
+    <track producer="playlist1"/>
+    <property name="meta">kdenlive</property>
+  </tractor>
+</mlt>
