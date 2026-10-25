@@ -306,3 +306,60 @@ def stop_job(job_id: str) -> dict[str, Any]:
         "running_after_signal": still,
         "returncode": status.get("returncode"),
     }
+
+
+def run_command(
+    command: list[str], timeout: int = 300, env: dict[str, str] | None = None
+) -> dict[str, Any]:
+    """Run a command synchronously, capturing stdout/stderr and exit code."""
+    try:
+        proc = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            env=env if env is not None else os.environ,
+        )
+        return {
+            "returncode": proc.returncode,
+            "stdout": proc.stdout or "",
+            "stderr": proc.stderr or "",
+        }
+    except subprocess.TimeoutExpired as exc:
+        return {
+            "returncode": -1,
+            "stdout": exc.stdout or "",
+            "stderr": (exc.stderr or "")
+            + f"\ncommand timed out after {timeout}s",
+            "timeout": True,
+        }
+    except OSError as exc:
+        return {"returncode": -1, "error": str(exc), "stdout": "", "stderr": ""}
+
+
+def ffprobe(path: str) -> dict[str, Any] | None:
+    """Probe a media file with ffprobe; parsed JSON or None on failure."""
+    bin_ = find_binary("ffprobe")
+    if not bin_:
+        return None
+    try:
+        proc = subprocess.run(
+            [
+                bin_,
+                "-v",
+                "error",
+                "-print_format",
+                "json",
+                "-show_streams",
+                "-show_format",
+                str(path),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        if proc.returncode != 0:
+            return None
+        return json.loads(proc.stdout or "{}")
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return None
