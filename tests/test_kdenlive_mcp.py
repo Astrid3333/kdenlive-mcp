@@ -93,9 +93,25 @@ def test_stop_job(tmp_path, monkeypatch):
     time.sleep(0.2)
     res = jobs.stop_job(job.job_id)
     assert res.get("ok") is True
+    assert res.get("running_after_signal") is False
     time.sleep(0.7)
     status = jobs.job_status(job.job_id)
     assert status["running"] is False
+
+
+def test_stop_already_finished_job(tmp_path, monkeypatch):
+    monkeypatch.setenv("KDENLIVE_MCP_HOME", str(tmp_path / "state"))
+    monkeypatch.setenv("KDENLIVE_MCP_FORCE_RENDER", "1")
+    jobs.JOBS_DIR = Path(tmp_path / "state" / "jobs")
+    job = jobs.start_job(["bash", "-c", "true"], project="p", output="o")
+    for _ in range(50):
+        if not jobs.job_status(job.job_id)["running"]:
+            break
+        time.sleep(0.1)
+    res = jobs.stop_job(job.job_id)
+    assert res.get("ok") is True
+    assert res.get("stopped") is False
+    assert "not running" in res.get("note", "")
 
 
 def test_render_start_with_stub_melt(tmp_path, monkeypatch):

@@ -284,10 +284,25 @@ def stop_job(job_id: str) -> dict[str, Any]:
     try:
         os.killpg(os.getpgid(pid), signal.SIGTERM)
     except (OSError, ProcessLookupError):
-        return {"ok": False, "error": "process not running"}
+        status = job_status(job_id)
+        return {
+            "ok": True,
+            "job_id": job_id,
+            "stopped": False,
+            "note": "process was not running",
+            "returncode": status.get("returncode"),
+        }
     time.sleep(0.5)
     try:
         os.killpg(os.getpgid(pid), signal.SIGKILL)
     except (OSError, ProcessLookupError):
         pass
-    return {"ok": True, "job_id": job_id, "stopped": True}
+    status = job_status(job_id)
+    still = status.get("running")
+    return {
+        "ok": True,
+        "job_id": job_id,
+        "stopped": bool(not still),
+        "running_after_signal": still,
+        "returncode": status.get("returncode"),
+    }
