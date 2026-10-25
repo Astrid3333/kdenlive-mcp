@@ -19,6 +19,10 @@ STATE_DIR = Path(
 JOBS_DIR = STATE_DIR / "jobs"
 
 _PATTERNS = [
+    re.compile(
+        r"Current Frame:\s*(?P<done>\d+).*?percentage:\s*(?P<pct>\d{1,3}(?:\.\d+)?)"
+    ),
+    re.compile(r"percentage:\s*(?P<pct>\d{1,3}(?:\.\d+)?)"),
     re.compile(r"(?P<pct>\d{1,3}(?:\.\d+)?)\s*%"),
     re.compile(r"#\s*(?P<done>\d+)\s*/\s*(?P<total>\d+)"),
     re.compile(r"\b(?P<done>\d+)\s*/\s*(?P<total>\d+)\b"),
@@ -125,7 +129,12 @@ def _progress(log_path: str) -> dict[str, Any]:
             if groups.get("pct") is not None:
                 pct = float(groups["pct"])
                 if pct <= 100:
-                    best = {"percent": pct, "frames": None, "line": line.strip()}
+                    done = groups.get("done")
+                    best = {
+                        "percent": pct,
+                        "frames": f"frame {done}" if done else None,
+                        "line": line.strip(),
+                    }
             else:
                 done, total = int(groups["done"]), int(groups["total"])
                 if total > 0:
@@ -210,6 +219,12 @@ def job_status(job_id: str) -> dict[str, Any]:
                     meta["returncode"] = -1
                 _write_meta_from_dict(meta)
 
+    rc = meta.get("returncode")
+    tail = _tail(log_path)
+    hint = None
+    if rc not in (None, 0):
+        lines = [ln for ln in tail if ln.strip() and "%" not in ln]
+        hint = lines[-1] if lines else "render failed with no log output"
     return {
         "ok": True,
         "job_id": job_id,
@@ -219,9 +234,10 @@ def job_status(job_id: str) -> dict[str, Any]:
         "created": meta.get("created"),
         "pid": pid,
         "running": running,
-        "returncode": meta.get("returncode"),
+        "returncode": rc,
         "progress": _progress(log_path),
-        "log_tail": _tail(log_path),
+        "log_tail": tail,
+        "error_hint": hint,
         "output_exists": bool(meta.get("output")) and os.path.exists(meta["output"]),
     }
 

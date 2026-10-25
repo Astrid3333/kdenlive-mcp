@@ -129,3 +129,13 @@ def test_render_start_with_stub_melt(tmp_path, monkeypatch):
     assert status["output_exists"] is True
     assert status["progress"]["percent"] == 100.0
     assert server.kdenlive_env()["ready"] is True
+
+
+def test_progress_parses_melt_current_frame(tmp_path):
+    from kdenlive_mcp import jobs
+
+    log = tmp_path / "render.log"
+    log.write_text("Current Frame:        49, percentage:         98\n")
+    prog = jobs._progress(str(log))
+    assert prog["percent"] == 98.0
+    assert prog["frames"] == "frame 49"
